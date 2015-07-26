@@ -1,0 +1,114 @@
+---
+title: "Practical Machine Learning: Prediction Model Assignment Write-up"
+author: "A Elsagher"
+date: "Sunday, July 26, 2015"
+output: html_document
+---
+
+Background
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. In this project, the goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). 
+
+We will use the data from Human Activity Recognition (HAR). The aim is to train a model based on the data of various sensor values, which could later be used to predict the Classe variable, that is the manner in which the participants of HAR did the exercise.
+
+load libraries
+
+
+```{r}
+library(ggplot2)
+library(lattice)
+library(caret)
+library(randomForest)
+library(e1071)
+library(gbm)
+library(doParallel)
+library(survival)
+library(splines)
+library(plyr)
+library(rpart)
+```
+
+
+```{r}
+training <- read.csv("C:/--Coursera/pml/pml-training.csv", stringsAsFactors = FALSE)
+testing <- read.csv("C:/--Coursera/pml/pml-testing.csv", stringsAsFactors = FALSE)
+```
+
+
+```{r}
+summary(training[,c(1:2,159:160)])
+```
+
+
+
+
+
+
+```{r}
+CleanTrain<-training
+CleanTrain[ CleanTrain == '' | CleanTrain == 'NA'] <- NA
+indx <-which(colSums(is.na(CleanTrain))!=0)
+CleanTrain<-CleanTrain[, -indx]
+CleanTrain<-CleanTrain[,-(1:7)]
+```
+
+
+Creating a Data set that are Valid, This is for Cross validating with the Training Set.
+
+```{r}
+InTraining  <- createDataPartition(y=CleanTrain$classe,p=0.70,list=FALSE)
+CleanTrain <- CleanTrain[InTraining,]
+ValidateSet <- CleanTrain[-InTraining,]
+```
+
+
+Prediction Model set to predict the weight lifting quality in the Training Set.
+```{r}
+Pmodel <- train (classe ~ ., data=CleanTrain, method = "rf", tuneLength = 1, ntree = 25)
+print(Pmodel)
+```
+
+
+Confussion Matrix to evaluate the Prediction Model set versus the Validate Data set.
+
+
+```{r}
+confusionMatrix(predict(Pmodel, ValidateSet), ValidateSet$classe)
+```
+
+
+Accuracy of the Model
+
+```{r}
+accurate <- c(as.numeric(predict(Pmodel,newdata=ValidateSet[,-ncol(ValidateSet)])==ValidateSet$classe))
+MAccuracy <- sum(accurate)*100/nrow(ValidateSet)
+message("Accuracy of Prediction Model set VS Validate Data set = ", format(round(MAccuracy, 2), nsmall=2),"%")
+```
+
+
+
+Based on results, the Random Forest prediction was far better than either the GBM or lsa models. The RF model will be used as the sole prediction model. The confusion matrix created gives an accuracy of 99.6%. This is excellent.
+A 100% accuracy was computed here, but caution must be taken due to the use of Random forest, tends to Overfitting.
+
+
+Predictions / testing set:
+
+
+
+```{r}
+nrow(testing)
+ncol(testing)
+summary(testing[,c(1:2,159:160)])
+```
+
+
+Results of the Prediction
+
+```{r}
+Ptest<-predict(Pmodel, testing)
+print(Ptest)
+```
+
+
+
+
